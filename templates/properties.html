@@ -1,0 +1,417 @@
+{% extends 'layout.html' %}
+
+{% block title %}العقارات{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- فلتر البحث الجانبي -->
+        <div class="col-lg-3 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-filter me-2"></i>
+                        تصفية النتائج
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('properties') }}" method="get">
+                        <!-- نوع المعاملة -->
+                        <div class="mb-3">
+                            <label for="transaction_type" class="form-label">نوع المعاملة</label>
+                            <select name="transaction_type" id="transaction_type" class="form-select">
+                                <option value="">جميع المعاملات</option>
+                                <option value="sale" {% if request.args.get('transaction_type')=='sale' %}selected{%
+                                    endif %}>للبيع</option>
+                                <option value="rent" {% if request.args.get('transaction_type')=='rent' %}selected{%
+                                    endif %}>للإيجار</option>
+                            </select>
+                        </div>
+
+                        <!-- نوع العقار -->
+                        <div class="mb-3">
+                            <label for="property_type_id" class="form-label">نوع العقار</label>
+                            <select name="property_type_id" id="property_type_id" class="form-select">
+                                <option value="">جميع الأنواع</option>
+                                {% for type in property_types %}
+                                <option value="{{ type.id }}" {% if request.args.get('property_type_id')|int==type.id
+                                    %}selected{% endif %}>{{ type.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- المنطقة -->
+                        <div class="mb-3">
+                            <label for="region_id" class="form-label">المنطقة</label>
+                            <select name="region_id" id="region_id" class="form-select">
+                                <option value="">جميع المناطق</option>
+                                {% for region in regions %}
+                                <option value="{{ region.id }}" {% if request.args.get('region_id')|int==region.id
+                                    %}selected{% endif %}>{{ region.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- نطاق السعر -->
+                        <div class="mb-3">
+                            <label class="form-label">نطاق السعر</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="number" name="min_price" placeholder="من" class="form-control"
+                                        value="{{ request.args.get('min_price', '') }}">
+                                </div>
+                                <div class="col-6">
+                                    <input type="number" name="max_price" placeholder="إلى" class="form-control"
+                                        value="{{ request.args.get('max_price', '') }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- غرف النوم -->
+                        <div class="mb-3">
+                            <label for="bedrooms" class="form-label">عدد غرف النوم (الحد الأدنى)</label>
+                            <select name="bedrooms" id="bedrooms" class="form-select">
+                                <option value="">الكل</option>
+                                <option value="1" {% if request.args.get('bedrooms')=='1' %}selected{% endif %}>1+
+                                </option>
+                                <option value="2" {% if request.args.get('bedrooms')=='2' %}selected{% endif %}>2+
+                                </option>
+                                <option value="3" {% if request.args.get('bedrooms')=='3' %}selected{% endif %}>3+
+                                </option>
+                                <option value="4" {% if request.args.get('bedrooms')=='4' %}selected{% endif %}>4+
+                                </option>
+                                <option value="5" {% if request.args.get('bedrooms')=='5' %}selected{% endif %}>5+
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- الحمامات -->
+                        <div class="mb-3">
+                            <label for="bathrooms" class="form-label">عدد الحمامات (الحد الأدنى)</label>
+                            <select name="bathrooms" id="bathrooms" class="form-select">
+                                <option value="">الكل</option>
+                                <option value="1" {% if request.args.get('bathrooms')=='1' %}selected{% endif %}>1+
+                                </option>
+                                <option value="2" {% if request.args.get('bathrooms')=='2' %}selected{% endif %}>2+
+                                </option>
+                                <option value="3" {% if request.args.get('bathrooms')=='3' %}selected{% endif %}>3+
+                                </option>
+                                <option value="4" {% if request.args.get('bathrooms')=='4' %}selected{% endif %}>4+
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- المساحة -->
+                        <div class="mb-3">
+                            <label for="min_area" class="form-label">المساحة (الحد الأدنى بالمتر المربع)</label>
+                            <input type="number" name="min_area" id="min_area" class="form-control"
+                                value="{{ request.args.get('min_area', '') }}">
+                        </div>
+
+                        <!-- البحث -->
+                        <div class="mb-3">
+                            <label for="keyword" class="form-label">البحث</label>
+                            <input type="text" name="keyword" id="keyword" class="form-control"
+                                placeholder="اكتب كلمة للبحث..." value="{{ request.args.get('keyword', '') }}">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-filter me-2"></i>
+                            تصفية
+                        </button>
+
+                        <a href="{{ url_for('properties') }}" class="btn btn-outline-secondary w-100 mt-2">
+                            <i class="fas fa-times me-2"></i>
+                            إعادة ضبط
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- قائمة العقارات -->
+        <div class="col-lg-9">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-building me-2"></i>
+                    العقارات المتاحة
+                </h2>
+                <div class="d-flex align-items-center">
+                    <span class="me-2">عدد النتائج: <strong>{{ properties.items|length }}</strong></span>
+
+                    <div class="dropdown ms-2">
+                        <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-sort me-1"></i>
+                            ترتيب حسب
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <a class="dropdown-item {% if sort_by == 'price' and sort_order == 'asc' %}active{% endif %}"
+                                    href="{{ url_for('properties', sort_by='price', sort_order='asc', **request.args) }}">
+                                    السعر: من الأقل إلى الأعلى
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if sort_by == 'price' and sort_order == 'desc' %}active{% endif %}"
+                                    href="{{ url_for('properties', sort_by='price', sort_order='desc', **request.args) }}">
+                                    السعر: من الأعلى إلى الأقل
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if sort_by == 'created_at' and sort_order == 'desc' %}active{% endif %}"
+                                    href="{{ url_for('properties', sort_by='created_at', sort_order='desc', **request.args) }}">
+                                    الأحدث أولاً
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if sort_by == 'created_at' and sort_order == 'asc' %}active{% endif %}"
+                                    href="{{ url_for('properties', sort_by='created_at', sort_order='asc', **request.args) }}">
+                                    الأقدم أولاً
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if sort_by == 'area' and sort_order == 'desc' %}active{% endif %}"
+                                    href="{{ url_for('properties', sort_by='area', sort_order='desc', **request.args) }}">
+                                    المساحة: من الأكبر إلى الأصغر
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if sort_by == 'area' and sort_order == 'asc' %}active{% endif %}"
+                                    href="{{ url_for('properties', sort_by='area', sort_order='asc', **request.args) }}">
+                                    المساحة: من الأصغر إلى الأكبر
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- خريطة العقارات -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body p-0">
+                    <div id="properties-map" style="height: 350px;"></div>
+                </div>
+            </div>
+
+            {% if properties.items %}
+            <!-- قائمة العقارات -->
+            <div class="row">
+                {% for property in properties.items %}
+                <div class="col-lg-6 col-xl-4 mb-4">
+                    <div class="card property-card h-100">
+                        <div class="position-relative">
+                            {% if property.images|length > 0 %}
+                            <img src="{{ url_for('static', filename=property.images[0].image_path) }}"
+                                class="card-img-top" alt="{{ property.title }}">
+                            {% else %}
+                            <img src="{{ url_for('static', filename='img/property-placeholder.jpg') }}"
+                                class="card-img-top" alt="No Image">
+                            {% endif %}
+                            <div class="badge bg-info position-absolute top-0 start-0 m-2">
+                                {{ 'للبيع' if property.transaction_type == 'sale' else 'للإيجار' }}
+                            </div>
+                            <div class="badge bg-primary position-absolute top-0 end-0 m-2">
+                                {{ property.property_type.name }}
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title">{{ property.title }}</h5>
+                            <p class="text-muted mb-2">
+                                <i class="fas fa-map-marker-alt me-1"></i>
+                                {{ property.address }}
+                            </p>
+                            <p class="card-text mb-3">
+                                {{ property.description|truncate(100) }}
+                            </p>
+                            <div class="d-flex justify-content-between mb-3">
+                                <div>
+                                    <i class="fas fa-bed me-1 text-muted"></i>
+                                    <span class="text-muted">{{ property.bedrooms }} غرف</span>
+                                </div>
+                                <div>
+                                    <i class="fas fa-bath me-1 text-muted"></i>
+                                    <span class="text-muted">{{ property.bathrooms }} حمام</span>
+                                </div>
+                                <div>
+                                    <i class="fas fa-vector-square me-1 text-muted"></i>
+                                    <span class="text-muted">{{ property.area }} م²</span>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="h5 text-primary mb-0">{{ property.price|int }} $</span>
+                                <a href="{{ url_for('property_detail', property_id=property.id) }}"
+                                    class="btn btn-outline-primary">التفاصيل</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- ترقيم الصفحات -->
+            {% if properties.pages > 1 %}
+            <div class="d-flex justify-content-center mt-4">
+                <nav aria-label="Page navigation">
+                    <ul class="pagination">
+                        {% if properties.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link"
+                                href="{{ url_for('properties', page=properties.prev_num, **request.args) }}"
+                                aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        {% for page_num in properties.iter_pages(left_edge=1, right_edge=1, left_current=2,
+                        right_current=2) %}
+                        {% if page_num %}
+                        {% if page_num == properties.page %}
+                        <li class="page-item active"><a class="page-link" href="#">{{ page_num }}</a></li>
+                        {% else %}
+                        <li class="page-item"><a class="page-link"
+                                href="{{ url_for('properties', page=page_num, **request.args) }}">{{ page_num }}</a>
+                        </li>
+                        {% endif %}
+                        {% else %}
+                        <li class="page-item disabled"><a class="page-link" href="#">...</a></li>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% if properties.has_next %}
+                        <li class="page-item">
+                            <a class="page-link"
+                                href="{{ url_for('properties', page=properties.next_num, **request.args) }}"
+                                aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <!-- لا توجد عقارات -->
+            <div class="alert alert-info">
+                <h4 class="alert-heading">لا توجد نتائج!</h4>
+                <p>لم يتم العثور على عقارات تطابق معايير البحث الخاصة بك. يرجى تعديل معايير البحث أو البحث مرة أخرى
+                    لاحقاً.</p>
+                <hr>
+                <p class="mb-0">يمكنك إضافة عقار جديد إذا كنت مستخدماً مسجلاً.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // تهيئة الخريطة
+    let map;
+    let markers = [];
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // إنشاء الخريطة
+        map = L.map('properties-map').setView([15.3694, 44.1910], 12); // مركز اليمن
+
+        // إضافة طبقة OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // إضافة العقارات إلى الخريطة
+        {% for property in properties.items %}
+        addPropertyMarker(
+            {{ property.id }},
+        {{ property.latitude }},
+        {{ property.longitude }},
+        "{{ property.title }}",
+        "{{ property.address }}",
+        "{{ 'للبيع' if property.transaction_type == 'sale' else 'للإيجار' }}",
+        {{ property.price | int }},
+        "{{ url_for('property_detail', property_id=property.id) }}"
+    );
+    {% endfor %}
+
+    // ضبط الخريطة لتظهر جميع العقارات
+    if (markers.length > 0) {
+        const bounds = L.featureGroup(markers).getBounds();
+        map.fitBounds(bounds, { padding: [30, 30] });
+    }
+    });
+
+    // إضافة علامة للعقار على الخريطة
+    function addPropertyMarker(id, lat, lng, title, address, type, price, url) {
+        const marker = L.marker([lat, lng]).addTo(map);
+
+        // إنشاء محتوى النافذة المنبثقة
+        const popupContent = `
+            <div class="property-popup">
+                <h6>${title}</h6>
+                <div class="text-muted small mb-2">${address}</div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="badge bg-info">${type}</span>
+                    <span class="fw-bold text-primary">${price} $</span>
+                </div>
+                <hr class="my-2">
+                <a href="${url}" class="btn btn-sm btn-primary w-100">عرض التفاصيل</a>
+            </div>
+        `;
+
+        marker.bindPopup(popupContent);
+        markers.push(marker);
+
+        return marker;
+    }
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .property-card .card-img-top {
+        height: 200px;
+        object-fit: cover;
+    }
+
+    .property-card:hover {
+        transform: translateY(-5px);
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .property-popup {
+        min-width: 200px;
+    }
+
+    .page-link {
+        color: var(--bs-primary);
+    }
+
+    .page-item.active .page-link {
+        background-color: var(--bs-primary);
+        border-color: var(--bs-primary);
+    }
+
+    @media (max-width: 767.98px) {
+        #properties-map {
+            height: 250px;
+        }
+    }
+</style>
+{% endblock %}

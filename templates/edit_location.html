@@ -1,0 +1,201 @@
+{% extends "layout.html" %}
+
+{% block title %}Edit Location{% endblock %}
+
+{% block head %}
+    <style>
+        #map {
+            height: 400px;
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .form-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .map-instructions {
+            margin-bottom: 15px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card form-container">
+                <div class="card-header bg-dark text-white">
+                    <h3 class="mb-0">
+                        <i class="fas fa-edit me-2"></i> Edit Location
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info map-instructions">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Click on the map to update the location coordinates, or edit them manually below.
+                    </div>
+                    
+                    <!-- Google Map (for editing location) -->
+                    <div id="map"></div>
+                    
+                    <!-- Location Form -->
+                    <form method="POST" action="{{ url_for('edit_location', location_id=location_id) }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.name.id }}" class="form-label">{{ form.name.label }}</label>
+                                    {{ form.name(class="form-control", placeholder="Enter location name") }}
+                                    {% if form.name.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.name.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.category.id }}" class="form-label">{{ form.category.label }}</label>
+                                    {{ form.category(class="form-control", placeholder="e.g., Restaurant, Park, Office") }}
+                                    {% if form.category.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.category.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="{{ form.description.id }}" class="form-label">{{ form.description.label }}</label>
+                            {{ form.description(class="form-control", rows=3, placeholder="Describe this location...") }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.description.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.lat.id }}" class="form-label">{{ form.lat.label }}</label>
+                                    {{ form.lat(class="form-control", id="lat-input") }}
+                                    {% if form.lat.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.lat.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.lng.id }}" class="form-label">{{ form.lng.label }}</label>
+                                    {{ form.lng(class="form-control", id="lng-input") }}
+                                    {% if form.lng.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.lng.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group d-flex justify-content-between">
+                            <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Back to Map
+                            </a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        let map;
+        let marker;
+        
+        function initEditLocationMap() {
+            // Get initial coordinates from form
+            const initialLat = parseFloat(document.getElementById('lat-input').value) || 0;
+            const initialLng = parseFloat(document.getElementById('lng-input').value) || 0;
+            const initialLocation = [initialLat, initialLng];
+            
+            // Initialize the map
+            map = L.map('map').setView(initialLocation, 12);
+            
+            // Add the OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            // Place initial marker
+            placeMarker(initialLocation);
+            
+            // Add click listener to the map
+            map.on('click', function(e) {
+                const clickedLocation = [e.latlng.lat, e.latlng.lng];
+                placeMarker(clickedLocation);
+                
+                // Update form inputs
+                document.getElementById('lat-input').value = e.latlng.lat;
+                document.getElementById('lng-input').value = e.latlng.lng;
+            });
+            
+            // Add input change listeners
+            document.getElementById('lat-input').addEventListener('change', updateMarkerFromInputs);
+            document.getElementById('lng-input').addEventListener('change', updateMarkerFromInputs);
+        }
+        
+        function placeMarker(location) {
+            // Remove existing marker if any
+            if (marker) {
+                map.removeLayer(marker);
+            }
+            
+            // Create new marker
+            marker = L.marker(location, {
+                draggable: true
+            }).addTo(map);
+            
+            // Add drag end listener to update form inputs
+            marker.on('dragend', function() {
+                const position = marker.getLatLng();
+                document.getElementById('lat-input').value = position.lat;
+                document.getElementById('lng-input').value = position.lng;
+            });
+        }
+        
+        function updateMarkerFromInputs() {
+            const lat = parseFloat(document.getElementById('lat-input').value);
+            const lng = parseFloat(document.getElementById('lng-input').value);
+            
+            if (!isNaN(lat) && !isNaN(lng)) {
+                const location = [lat, lng];
+                placeMarker(location);
+                map.setView(location);
+            }
+        }
+        
+        // Initialize the map when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', initEditLocationMap);
+    </script>
+{% endblock %}

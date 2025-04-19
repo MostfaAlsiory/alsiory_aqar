@@ -1,0 +1,102 @@
+{% extends 'layout.html' %}
+
+{% block title %}إدارة المستخدمين - لوحة التحكم{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="mb-3">إدارة المستخدمين</h2>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">قائمة المستخدمين</h5>
+        </div>
+        <div class="card-body">
+            {% if users %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>اسم المستخدم</th>
+                            <th>البريد الإلكتروني</th>
+                            <th>الهاتف</th>
+                            <th>الدور</th>
+                            <th>الحالة</th>
+                            <th>تاريخ التسجيل</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>{{ user.phone }}</td>
+                            <td>
+                                {% if user.role == 'admin' %}
+                                <span class="badge bg-danger">مسؤول</span>
+                                {% elif user.role == 'agent' %}
+                                <span class="badge bg-primary">وكيل</span>
+                                {% else %}
+                                <span class="badge bg-secondary">عميل</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.is_active %}
+                                <span class="text-success"><i class="fas fa-check-circle"></i> نشط</span>
+                                {% else %}
+                                <span class="text-danger"><i class="fas fa-times-circle"></i> معطل</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#userModal{{ user.id }}">
+                                    <i class="fas fa-edit"></i> تعديل
+                                </button>
+                                
+                                <!-- Modal لتعديل المستخدم -->
+                                <div class="modal fade" id="userModal{{ user.id }}" tabindex="-1" aria-labelledby="userModalLabel{{ user.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="userModalLabel{{ user.id }}">تعديل المستخدم</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <form action="{{ url_for('update_user_role', user_id=user.id) }}" method="post">
+                                                    <div class="mb-3">
+                                                        <label for="role{{ user.id }}" class="form-label">الدور</label>
+                                                        <select class="form-select" id="role{{ user.id }}" name="role">
+                                                            <option value="customer" {% if user.role == 'customer' %}selected{% endif %}>عميل</option>
+                                                            <option value="agent" {% if user.role == 'agent' %}selected{% endif %}>وكيل</option>
+                                                            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>مسؤول</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3 form-check">
+                                                        <input type="checkbox" class="form-check-input" id="is_active{{ user.id }}" name="is_active" {% if user.is_active %}checked{% endif %}>
+                                                        <label class="form-check-label" for="is_active{{ user.id }}">حساب نشط</label>
+                                                    </div>
+                                                    <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                لا يوجد مستخدمون مسجلون حتى الآن.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

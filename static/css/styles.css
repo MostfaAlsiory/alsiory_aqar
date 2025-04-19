@@ -1,0 +1,113 @@
+/* Custom styles for the location manager application */
+
+/* Map styles */
+.map-container {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Info window customization */
+.leaflet-popup-content-wrapper {
+    border-radius: 4px;
+    padding: 0;
+}
+
+.leaflet-popup-content {
+    margin: 0;
+    padding: 12px;
+}
+
+.info-window h5 {
+    margin-top: 0;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.info-window p {
+    margin-bottom: 10px;
+}
+
+/* Leaflet dark mode compatibility */
+.leaflet-container {
+    background-color: #343a40;
+}
+
+.leaflet-bar a {
+    background-color: #212529;
+    color: #ffffff;
+    border-color: #495057;
+}
+
+.leaflet-bar a:hover {
+    background-color: #343a40;
+    color: #ffffff;
+}
+
+/* Custom map controls */
+.map-control {
+    margin: 10px;
+    background-color: #212529;
+    border-radius: 2px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+.map-control-btn {
+    padding: 8px 10px;
+    min-width: 40px;
+    color: #ffffff;
+}
+
+/* Location cards */
+.location-card {
+    transition: all 0.3s ease;
+    border-left: 4px solid var(--bs-primary);
+}
+
+.location-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Search and filter box */
+.search-box, .filter-box {
+    margin-bottom: 15px;
+}
+
+/* Form styles */
+.form-control:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* Responsive adjustments */
+@media (max-width: 767.98px) {
+    #map {
+        height: 400px;
+    }
+    
+    .location-list {
+        max-height: 300px;
+    }
+}
+
+/* Dark theme compatibility */
+[data-bs-theme=dark] .location-card {
+    background-color: #2b3035;
+    border-color: var(--bs-primary);
+}
+
+[data-bs-theme=dark] .card-header {
+    background-color: #212529;
+}
+
+[data-bs-theme=dark] .map-control {
+    background-color: #343a40;
+}
+
+[data-bs-theme=dark] .map-control-btn {
+    color: #fff;
+    background-color: #212529;
+}

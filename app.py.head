@@ -1,0 +1,600 @@
+import os
+import io
+import zipfile
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, send_file
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
+from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from werkzeug.utils import secure_filename
+import uuid
+
+# إنشاء قاعدة البيانات
+class Base(DeclarativeBase):
+    pass
+
+db = SQLAlchemy(model_class=Base)
+
+# إنشاء تطبيق فلاسك
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get("SESSION_SECRET") or "تطبيق_السيعوري_عقار_اليمن"
+
+# إعداد Cloudinary
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME', 'due2rm5cb'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY', '494883843628169'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET', 'TnEHyxax7uSePlBh4EwS8QjJdBs')
+)
+
+# إضافة فلتر لتحويل أسطر النص الجديدة إلى وسوم HTML
+@app.template_filter('nl2br')
+def nl2br_filter(s):
+    if s is None:
+        return ""
+    return s.replace('\n', '<br>')
+
+# إعداد قاعدة البيانات
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "pool_recycle": 300,
+    "pool_pre_ping": True,
+}
+db.init_app(app)
+
+# إعداد نظام تسجيل الدخول
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'يرجى تسجيل الدخول للوصول إلى هذه الصفحة'
+
+# نماذج قاعدة البيانات
+class User(UserMixin, db.Model):
+    __tablename__ = 'users'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    email = db.Column(db.String(100), unique=True, nullable=False)
+    phone = db.Column(db.String(20), nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    role = db.Column(db.String(20), default='customer')  # admin, agent, customer
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # العلاقات
+    properties = db.relationship('Property', backref='owner', lazy=True, foreign_keys='Property.owner_id')
+    
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+    
+    def __repr__(self):
+        return f'<User {self.username}>'
+
+class Region(db.Model):
+    __tablename__ = 'regions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    
+    # العلاقات
+    cities = db.relationship('City', backref='region', lazy=True)
+    
+    def __repr__(self):
+        return f'<Region {self.name}>'
+
+class City(db.Model):
+    __tablename__ = 'cities'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    region_id = db.Column(db.Integer, db.ForeignKey('regions.id'), nullable=False)
+    
+    # العلاقات
+    districts = db.relationship('District', backref='city', lazy=True)
+    
+    def __repr__(self):
+        return f'<City {self.name}>'
+
+class District(db.Model):
+    __tablename__ = 'districts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    city_id = db.Column(db.Integer, db.ForeignKey('cities.id'), nullable=False)
+    
+    # العلاقات
+    properties = db.relationship('Property', backref='district', lazy=True)
+    
+    def __repr__(self):
+        return f'<District {self.name}>'
+
+class PropertyType(db.Model):
+    __tablename__ = 'property_types'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    
+    # العلاقات
+    properties = db.relationship('Property', backref='property_type', lazy=True)
+    
+    def __repr__(self):
+        return f'<PropertyType {self.name}>'
+
+class Property(db.Model):
+    __tablename__ = 'properties'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(150), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    area = db.Column(db.Float, nullable=False)  # المساحة بالمتر المربع
+    bedrooms = db.Column(db.Integer, default=0)
+    bathrooms = db.Column(db.Integer, default=0)
+    
+    # الموقع
+    address = db.Column(db.String(200), nullable=False)
+    district_id = db.Column(db.Integer, db.ForeignKey('districts.id'), nullable=False)
+    latitude = db.Column(db.Float, nullable=False)
+    longitude = db.Column(db.Float, nullable=False)
+    
+    # التصنيفات
+    property_type_id = db.Column(db.Integer, db.ForeignKey('property_types.id'), nullable=False)
+    transaction_type = db.Column(db.String(20), nullable=False)  # sale, rent
+    
+    # معلومات أخرى
+    is_featured = db.Column(db.Boolean, default=False)
+    status = db.Column(db.String(20), default='available')  # available, sold, rented
+    
+    # الملكية والتوقيت
+    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Property {self.title}>'
+
+class PropertyImage(db.Model):
+    __tablename__ = 'property_images'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False)
+    image_path = db.Column(db.String(255), nullable=False)
+    cloudinary_public_id = db.Column(db.String(255), nullable=True)  # معرف الصورة في Cloudinary
+    is_main = db.Column(db.Boolean, default=False)
+    
+    # العلاقات
+    property_rel = db.relationship('Property', backref='images')
+    
+    def get_image_url(self):
+        """إرجاع رابط الصورة (محلي أو من Cloudinary)"""
+        if self.cloudinary_public_id:
+            return cloudinary.CloudinaryImage(self.cloudinary_public_id).build_url()
+        else:
+            from flask import url_for
+            return url_for('static', filename=self.image_path)
+    
+    def __repr__(self):
+        return f'<PropertyImage {self.id}>'
+
+class Booking(db.Model):
+    __tablename__ = 'bookings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    booking_date = db.Column(db.DateTime, nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(20), default='pending')  # pending, confirmed, cancelled, completed
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # العلاقات
+    property = db.relationship('Property', backref='bookings')
+    user = db.relationship('User', backref='bookings')
+    
+    def __repr__(self):
+        return f'<Booking {self.id}>'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# وظائف مساعدة
+def upload_image_to_cloudinary(file):
+    """رفع صورة إلى Cloudinary وإرجاع معرف الصورة"""
+    if not file:
+        return None
+    
+    try:
+        # توليد اسم فريد للصورة
+        filename = secure_filename(file.filename)
+        unique_filename = f"{uuid.uuid4()}_{filename}"
+        
+        # رفع الصورة إلى Cloudinary
+        result = cloudinary.uploader.upload(
+            file,
+            public_id=f"sayouriaqar/{unique_filename}",
+            overwrite=True,
+            resource_type="image"
+        )
+        
+        # إرجاع معرف الصورة في Cloudinary
+        return result['public_id']
+    
+    except Exception as e:
+        print(f"خطأ في رفع الصورة إلى Cloudinary: {str(e)}")
+        return None
+
+# طرق التطبيق Routes
+@app.route('/')
+def index():
+    """الصفحة الرئيسية"""
+    latest_properties = Property.query.order_by(Property.created_at.desc()).limit(8).all()
+    featured_properties = Property.query.filter_by(is_featured=True).order_by(Property.created_at.desc()).limit(6).all()
+    property_count = Property.query.count()
+    regions = Region.query.all()
+    property_types = PropertyType.query.all()
+    
+    # إضافة متغير التاريخ للاستخدام في تذييل الصفحة
+    current_date = datetime.now()
+    
+    return render_template('index.html', 
+                          latest_properties=latest_properties,
+                          featured_properties=featured_properties,
+                          property_count=property_count,
+                          regions=regions,
+                          property_types=property_types,
+                          date=current_date)
+
+@app.route('/properties')
+def properties():
+    """صفحة عرض العقارات"""
+    # تطبيق مرشحات البحث
+    query = Property.query.filter_by(status='available')
+    
+    region_id = request.args.get('region_id', type=int)
+    if region_id and region_id > 0:
+        districts = District.query.join(City).filter(City.region_id == region_id).all()
+        district_ids = [d.id for d in districts]
+        query = query.filter(Property.district_id.in_(district_ids))
+    
+    property_type_id = request.args.get('property_type_id', type=int)
+    if property_type_id and property_type_id > 0:
+        query = query.filter_by(property_type_id=property_type_id)
+    
+    transaction_type = request.args.get('transaction_type')
+    if transaction_type:
+        query = query.filter_by(transaction_type=transaction_type)
+    
+    min_price = request.args.get('min_price', type=float)
+    if min_price:
+        query = query.filter(Property.price >= min_price)
+    
+    max_price = request.args.get('max_price', type=float)
+    if max_price:
+        query = query.filter(Property.price <= max_price)
+    
+    bedrooms = request.args.get('bedrooms', type=int)
+    if bedrooms and bedrooms > 0:
+        query = query.filter(Property.bedrooms >= bedrooms)
+    
+    bathrooms = request.args.get('bathrooms', type=int)
+    if bathrooms and bathrooms > 0:
+        query = query.filter(Property.bathrooms >= bathrooms)
+    
+    min_area = request.args.get('min_area', type=float)
+    if min_area:
+        query = query.filter(Property.area >= min_area)
+    
+    keyword = request.args.get('keyword')
+    if keyword:
+        query = query.filter(Property.title.ilike(f'%{keyword}%') | 
+                             Property.description.ilike(f'%{keyword}%') |
+                             Property.address.ilike(f'%{keyword}%'))
+    
+    # التصنيف والصفحات
+    sort_by = request.args.get('sort_by', 'created_at')
+    sort_order = request.args.get('sort_order', 'desc')
+    
+    if sort_by == 'price':
+        if sort_order == 'asc':
+            query = query.order_by(Property.price.asc())
+        else:
+            query = query.order_by(Property.price.desc())
+    elif sort_by == 'created_at':
+        if sort_order == 'asc':
+            query = query.order_by(Property.created_at.asc())
+        else:
+            query = query.order_by(Property.created_at.desc())
+    elif sort_by == 'area':
+        if sort_order == 'asc':
+            query = query.order_by(Property.area.asc())
+        else:
+            query = query.order_by(Property.area.desc())
+    
+    # الصفحات
+    page = request.args.get('page', 1, type=int)
+    per_page = 9  # عدد العقارات في كل صفحة
+    properties = query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    # الحصول على المناطق وأنواع العقارات للفلتر
+    regions = Region.query.all()
+    property_types = PropertyType.query.all()
+    
+    # إضافة متغير التاريخ للاستخدام في تذييل الصفحة
+    current_date = datetime.now()
+    
+    return render_template('properties.html', 
+                          properties=properties,
+                          regions=regions,
+                          property_types=property_types,
+                          sort_by=sort_by,
+                          sort_order=sort_order,
+                          date=current_date)
+
+@app.route('/property/<int:property_id>')
+def property_detail(property_id):
+    """صفحة تفاصيل العقار"""
+    property = Property.query.get_or_404(property_id)
+    
+    # البحث عن عقارات مشابهة (نفس نوع العقار ونوع المعاملة)
+    similar_properties = Property.query.filter(
+        Property.id != property_id,
+        Property.property_type_id == property.property_type_id,
+        Property.transaction_type == property.transaction_type,
+        Property.status == 'available'
+    ).limit(3).all()
+    
+    # إضافة متغير التاريخ للاستخدام في تذييل الصفحة
+    current_date = datetime.now()
+    
+    return render_template('property_detail.html',
+                          property=property,
+                          similar_properties=similar_properties,
+                          date=current_date)
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """صفحة تسجيل حساب جديد"""
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        password = request.form.get('password')
+        
+        # التحقق من عدم وجود المستخدم بالفعل
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            flash('البريد الإلكتروني مستخدم بالفعل!', 'danger')
+            return redirect(url_for('register'))
+        
+        # إنشاء مستخدم جديد
+        new_user = User(username=username, email=email, phone=phone)
+        new_user.set_password(password)
+        db.session.add(new_user)
+        db.session.commit()
+        
+        flash('تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول.', 'success')
+        return redirect(url_for('login'))
+    
+    # إضافة متغير التاريخ للاستخدام في تذييل الصفحة
+    current_date = datetime.now()
+    
+    return render_template('register.html', date=current_date)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """صفحة تسجيل الدخول"""
+    from forms import LoginForm
+    
+    form = LoginForm()
+    
+    if request.method == 'POST':
+        # تحقق من صحة النموذج
+        if form.validate_on_submit():
+            email = form.email.data
+            password = form.password.data
+            remember = form.remember.data
+            
+            user = User.query.filter_by(email=email).first()
+            if user and user.check_password(password):
+                login_user(user, remember=remember)
+                next_page = request.args.get('next')
+                flash('تم تسجيل الدخول بنجاح!', 'success')
+                return redirect(next_page or url_for('index'))
+            else:
+                flash('فشل تسجيل الدخول. يرجى التحقق من البريد الإلكتروني وكلمة المرور.', 'danger')
+        else:
+            # إذا لم يكن النموذج صالحًا، عرض رسالة الخطأ
+            for field, errors in form.errors.items():
+                for error in errors:
+                    flash(f'خطأ في حقل {getattr(form, field).label.text}: {error}', 'danger')
+    
+    # إضافة متغير التاريخ للاستخدام في تذييل الصفحة
+    current_date = datetime.now()
+    
+    return render_template('login.html', form=form, date=current_date)
+
+@app.route('/logout')
+@login_required
+def logout():
+    """تسجيل الخروج"""
+    logout_user()
+    flash('تم تسجيل الخروج بنجاح.', 'info')
+    return redirect(url_for('index'))
+
+@app.route('/property/<int:property_id>/book', methods=['POST'])
+@login_required
+def book_property(property_id):
+    """حجز موعد لمعاينة العقار"""
+    property = Property.query.get_or_404(property_id)
+    
+    if request.method == 'POST':
+        booking_date_str = request.form.get('booking_date')
+        notes = request.form.get('notes', '')
+        
+        try:
+            booking_date = datetime.fromisoformat(booking_date_str)
+            
+            # التحقق من أن تاريخ الحجز ليس في الماضي
+            if booking_date < datetime.now():
+                flash('يجب أن يكون تاريخ الحجز في المستقبل', 'danger')
+                return redirect(url_for('property_detail', property_id=property_id))
+            
+            # إنشاء حجز جديد
+            booking = Booking(
+                property_id=property_id,
+                user_id=current_user.id,
+                booking_date=booking_date,
+                notes=notes,
+                status='pending'
+            )
+            
+            db.session.add(booking)
+            db.session.commit()
+            
+            flash('تم حجز موعد المعاينة بنجاح. سيتم التواصل معك قريباً.', 'success')
+        except Exception as e:
+            flash(f'حدث خطأ أثناء محاولة الحجز: {str(e)}', 'danger')
+        
+    return redirect(url_for('property_detail', property_id=property_id))
+
+@app.route('/profile')
+@login_required
+def profile():
+    """صفحة الملف الشخصي للمستخدم"""
+    user_properties = Property.query.filter_by(owner_id=current_user.id).all()
+    user_bookings = Booking.query.filter_by(user_id=current_user.id).all()
+    
+    # إضافة متغير التاريخ للاستخدام في تذييل الصفحة
+    current_date = datetime.now()
+    
+    return render_template('profile.html', 
+                          user=current_user, 
+                          properties=user_properties,
+                          bookings=user_bookings,
+                          date=current_date)
+
+@app.route('/admin/dashboard')
+@login_required
+def admin_dashboard():
+    """لوحة التحكم الإدارية"""
+    # تحقق من صلاحيات المستخدم
+    if current_user.role != 'admin':
+        flash('ليس لديك صلاحية الوصول إلى لوحة التحكم.', 'danger')
+        return redirect(url_for('index'))
+    
+    # إحصائيات عامة
+    total_properties = Property.query.count()
+    active_properties = Property.query.filter_by(status='available').count()
+    total_users = User.query.count()
+    pending_bookings = Booking.query.filter_by(status='pending').count()
+    
+    # أحدث المستخدمين
+    latest_users = User.query.order_by(User.created_at.desc()).limit(5).all()
+    
+    # أحدث العقارات
+    latest_properties = Property.query.order_by(Property.created_at.desc()).limit(5).all()
+    
+    # أحدث الحجوزات
+    latest_bookings = Booking.query.order_by(Booking.created_at.desc()).limit(5).all()
+    
+    # إضافة متغير التاريخ للاستخدام في تذييل الصفحة
+    current_date = datetime.now()
+    
+    return render_template('admin/dashboard.html',
+                           total_properties=total_properties,
+                           active_properties=active_properties,
+                           total_users=total_users,
+                           pending_bookings=pending_bookings,
+                           latest_users=latest_users,
+                           latest_properties=latest_properties,
+                           latest_bookings=latest_bookings,
+                           date=current_date)
+
+@app.route('/admin/properties')
+@login_required
+def admin_properties():
+    """إدارة العقارات (للمسؤول)"""
+    if current_user.role != 'admin':
+        flash('ليس لديك صلاحية الوصول إلى هذه الصفحة.', 'danger')
+        return redirect(url_for('index'))
+    
+    page = request.args.get('page', 1, type=int)
+    status_filter = request.args.get('status', '')
+    
+    query = Property.query
+    
+    if status_filter:
+        query = query.filter_by(status=status_filter)
+    
+    properties = query.order_by(Property.created_at.desc()).paginate(page=page, per_page=10, error_out=False)
+    
+    # إضافة متغير التاريخ للاستخدام في تذييل الصفحة
+    current_date = datetime.now()
+    
+    return render_template('admin/properties.html', 
+                           properties=properties, 
+                           status_filter=status_filter,
+                           date=current_date)
+
+@app.route('/admin/users')
+@login_required
+def admin_users():
+    """إدارة المستخدمين (للمسؤول)"""
+    if current_user.role != 'admin':
+        flash('ليس لديك صلاحية الوصول إلى هذه الصفحة.', 'danger')
+        return redirect(url_for('index'))
+    
+    page = request.args.get('page', 1, type=int)
+    role_filter = request.args.get('role', '')
+    
+    query = User.query
+    
+    if role_filter:
+        query = query.filter_by(role=role_filter)
+    
+    users = query.order_by(User.created_at.desc()).paginate(page=page, per_page=10, error_out=False)
+    
+    # إضافة متغير التاريخ للاستخدام في تذييل الصفحة
+    current_date = datetime.now()
+    
+    return render_template('admin/users.html', 
+                           users=users, 
+                           role_filter=role_filter,
+                           date=current_date)
+
+@app.route('/admin/bookings')
+@login_required
+def admin_bookings():
+    """إدارة الحجوزات (للمسؤول)"""
+    if current_user.role != 'admin':
+        flash('ليس لديك صلاحية الوصول إلى هذه الصفحة.', 'danger')
+        return redirect(url_for('index'))
+    
+    page = request.args.get('page', 1, type=int)
+    status_filter = request.args.get('status', '')
+    
+    query = Booking.query
+    
+    if status_filter:
+        query = query.filter_by(status=status_filter)
+    
+    bookings = query.order_by(Booking.created_at.desc()).paginate(page=page, per_page=10, error_out=False)
+    
+    # إضافة متغير التاريخ للاستخدام في تذييل الصفحة
+    current_date = datetime.now()
+    
+    return render_template('admin/bookings.html', 
+                           bookings=bookings, 
+                           status_filter=status_filter,
+                           date=current_date)
+
+@app.route('/admin/regions')
+@login_required
+def admin_regions():

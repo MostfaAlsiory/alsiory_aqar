@@ -1,0 +1,402 @@
+{% extends 'layout.html' %}
+
+{% block title %}الرئيسية{% endblock %}
+
+{% block content %}
+<!-- قسم الرأسية الرئيسية مع صورة خلفية -->
+<section class="hero-section position-relative">
+    <div class="overlay bg-primary opacity-75 position-absolute w-100 h-100"></div>
+    <div class="container py-5 position-relative">
+        <div class="row align-items-center py-5">
+            <div class="col-lg-6 text-white">
+                <h1 class="display-4 fw-bold mb-4">ابحث عن عقارك المثالي في اليمن</h1>
+                <p class="lead mb-4">مع السيعوري عقار، يمكنك العثور على العقار المناسب لاحتياجاتك بسهولة وأمان</p>
+                <a href="{{ url_for('properties') }}" class="btn btn-light btn-lg px-4">
+                    <i class="fas fa-search me-2"></i>
+                    استعرض العقارات
+                </a>
+            </div>
+            <div class="col-lg-6 d-none d-lg-block">
+                <div class="search-panel bg-white p-4 rounded shadow mt-4">
+                    <h4 class="text-dark mb-4">ابحث عن عقارات</h4>
+                    <form action="{{ url_for('properties') }}" method="get">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <select name="transaction_type" class="form-select">
+                                    <option value="">نوع المعاملة</option>
+                                    <option value="sale">للبيع</option>
+                                    <option value="rent">للإيجار</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <select name="property_type_id" class="form-select">
+                                    <option value="">نوع العقار</option>
+                                    {% for type in property_types %}
+                                    <option value="{{ type.id }}">{{ type.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <select name="region_id" class="form-select">
+                                    <option value="">المنطقة</option>
+                                    {% for region in regions %}
+                                    <option value="{{ region.id }}">{{ region.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <input type="number" name="min_price" class="form-control" placeholder="السعر من">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="number" name="max_price" class="form-control" placeholder="السعر إلى">
+                            </div>
+                            <div class="col-md-6">
+                                <input type="number" name="bedrooms" class="form-control" placeholder="غرف النوم">
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-search me-2"></i>
+                                    بحث
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- قسم الإحصائيات السريعة -->
+<section class="py-4 bg-white">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-md-3 col-6 mb-4 mb-md-0">
+                <div class="p-3">
+                    <i class="fas fa-building fa-3x text-primary mb-3"></i>
+                    <h2 class="fw-bold">{{ property_count|default(0) }}</h2>
+                    <p class="text-muted">عقارات متاحة</p>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-4 mb-md-0">
+                <div class="p-3">
+                    <i class="fas fa-city fa-3x text-primary mb-3"></i>
+                    <h2 class="fw-bold">{{ regions|length|default(0) }}</h2>
+                    <p class="text-muted">محافظات</p>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="p-3">
+                    <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                    <h2 class="fw-bold">500+</h2>
+                    <p class="text-muted">عملاء سعداء</p>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="p-3">
+                    <i class="fas fa-handshake fa-3x text-primary mb-3"></i>
+                    <h2 class="fw-bold">200+</h2>
+                    <p class="text-muted">صفقات ناجحة</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- قسم العقارات المميزة -->
+<section class="py-5">
+    <div class="container">
+        <h2 class="text-center mb-5">العقارات المميزة</h2>
+        
+        {% if featured_properties %}
+            <div class="row">
+                {% for property in featured_properties %}
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card property-card h-100">
+                        <div class="position-relative">
+                            {% if property.images|length > 0 %}
+                                <img src="{{ url_for('static', filename=property.images[0].image_path) }}" class="card-img-top" alt="{{ property.title }}">
+                            {% else %}
+                                <img src="{{ url_for('static', filename='img/property-placeholder.jpg') }}" class="card-img-top" alt="No Image">
+                            {% endif %}
+                            <div class="badge bg-info position-absolute top-0 start-0 m-2">
+                                {{ 'للبيع' if property.transaction_type == 'sale' else 'للإيجار' }}
+                            </div>
+                            <div class="badge bg-primary position-absolute top-0 end-0 m-2">
+                                {{ property.property_type.name }}
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title">{{ property.title }}</h5>
+                            <p class="text-muted mb-2">
+                                <i class="fas fa-map-marker-alt me-1"></i>
+                                {{ property.address }}
+                            </p>
+                            <p class="card-text mb-3">
+                                {{ property.description|truncate(100) }}
+                            </p>
+                            <div class="d-flex justify-content-between mb-3">
+                                <div>
+                                    <i class="fas fa-bed me-1 text-muted"></i>
+                                    <span class="text-muted">{{ property.bedrooms }} غرف</span>
+                                </div>
+                                <div>
+                                    <i class="fas fa-bath me-1 text-muted"></i>
+                                    <span class="text-muted">{{ property.bathrooms }} حمام</span>
+                                </div>
+                                <div>
+                                    <i class="fas fa-vector-square me-1 text-muted"></i>
+                                    <span class="text-muted">{{ property.area }} م²</span>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="h5 text-primary mb-0">{{ property.price|int }} $</span>
+                                <a href="{{ url_for('property_detail', property_id=property.id) }}" class="btn btn-outline-primary">التفاصيل</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="text-center mt-4">
+                <a href="{{ url_for('properties') }}" class="btn btn-outline-primary">عرض جميع العقارات</a>
+            </div>
+        {% else %}
+            <div class="alert alert-info text-center">
+                لا توجد عقارات مميزة حالياً
+            </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- قسم كيف يعمل التطبيق -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <h2 class="text-center mb-5">كيف يعمل السيعوري عقار؟</h2>
+        <div class="row">
+            <div class="col-md-4 mb-4 mb-md-0">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="icon-box rounded-circle bg-primary mb-4 mx-auto">
+                            <i class="fas fa-search text-white"></i>
+                        </div>
+                        <h4>ابحث عن العقار</h4>
+                        <p class="text-muted">استخدم أدوات البحث المتقدمة لدينا للعثور على العقار المناسب لاحتياجاتك</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4 mb-md-0">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="icon-box rounded-circle bg-primary mb-4 mx-auto">
+                            <i class="fas fa-calendar-check text-white"></i>
+                        </div>
+                        <h4>حدد موعد معاينة</h4>
+                        <p class="text-muted">قم بتحديد موعد لمعاينة العقار والاطلاع على تفاصيله على أرض الواقع</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="icon-box rounded-circle bg-primary mb-4 mx-auto">
+                            <i class="fas fa-handshake text-white"></i>
+                        </div>
+                        <h4>أتمم الصفقة</h4>
+                        <p class="text-muted">وفر وقتك وجهدك واحصل على العقار الذي يناسبك بطريقة سهلة وآمنة</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- قسم أحدث العقارات -->
+<section class="py-5">
+    <div class="container">
+        <h2 class="text-center mb-5">أحدث العقارات</h2>
+        
+        {% if latest_properties %}
+            <div class="row">
+                {% for property in latest_properties %}
+                <div class="col-md-3 col-sm-6 mb-4">
+                    <div class="card property-card h-100">
+                        <div class="position-relative">
+                            {% if property.images|length > 0 %}
+                                <img src="{{ url_for('static', filename=property.images[0].image_path) }}" class="card-img-top" alt="{{ property.title }}">
+                            {% else %}
+                                <img src="{{ url_for('static', filename='img/property-placeholder.jpg') }}" class="card-img-top" alt="No Image">
+                            {% endif %}
+                            <div class="badge bg-info position-absolute top-0 start-0 m-2">
+                                {{ 'للبيع' if property.transaction_type == 'sale' else 'للإيجار' }}
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-title">{{ property.title|truncate(40) }}</h6>
+                            <p class="text-muted small mb-2">
+                                <i class="fas fa-map-marker-alt me-1"></i>
+                                {{ property.address|truncate(30) }}
+                            </p>
+                            <div class="d-flex justify-content-between my-2">
+                                <small><i class="fas fa-bed me-1"></i> {{ property.bedrooms }}</small>
+                                <small><i class="fas fa-bath me-1"></i> {{ property.bathrooms }}</small>
+                                <small><i class="fas fa-vector-square me-1"></i> {{ property.area }} م²</small>
+                            </div>
+                            <hr class="my-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="h6 text-primary mb-0">{{ property.price|int }} $</span>
+                                <a href="{{ url_for('property_detail', property_id=property.id) }}" class="btn btn-sm btn-outline-primary">التفاصيل</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info text-center">
+                لا توجد عقارات متاحة حالياً
+            </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- قسم الشهادات والتوصيات -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <h2 class="text-center mb-5">ماذا يقول عملاؤنا</h2>
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <img src="https://randomuser.me/api/portraits/men/1.jpg" alt="Client" class="rounded-circle me-3" width="60">
+                            <div>
+                                <h5 class="mb-0">أحمد محمد</h5>
+                                <small class="text-muted">صنعاء، اليمن</small>
+                            </div>
+                        </div>
+                        <p class="text-muted mb-0">
+                            "تجربة رائعة مع السيعوري عقار. سهولة في العثور على العقار المناسب وإتمام المعاملة بشكل سريع وآمن."
+                        </p>
+                        <div class="mt-3 text-warning">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <img src="https://randomuser.me/api/portraits/women/1.jpg" alt="Client" class="rounded-circle me-3" width="60">
+                            <div>
+                                <h5 class="mb-0">سارة علي</h5>
+                                <small class="text-muted">عدن، اليمن</small>
+                            </div>
+                        </div>
+                        <p class="text-muted mb-0">
+                            "فريق محترف ومتفاني في خدمة العملاء. استطعت العثور على الشقة المثالية بفضل مساعدتهم."
+                        </p>
+                        <div class="mt-3 text-warning">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star-half-alt"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <img src="https://randomuser.me/api/portraits/men/2.jpg" alt="Client" class="rounded-circle me-3" width="60">
+                            <div>
+                                <h5 class="mb-0">خالد احمد</h5>
+                                <small class="text-muted">تعز، اليمن</small>
+                            </div>
+                        </div>
+                        <p class="text-muted mb-0">
+                            "أفضل منصة عقارية استخدمتها. الخرائط التفاعلية ساعدتني في اختيار الموقع المناسب لمشروعي التجاري."
+                        </p>
+                        <div class="mt-3 text-warning">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- قسم "انضم إلينا" -->
+<section class="py-5 bg-primary text-white text-center">
+    <div class="container">
+        <h2 class="mb-4">هل تبحث عن بيع أو تأجير عقارك؟</h2>
+        <p class="lead mb-4">انضم إلينا اليوم وقم بإضافة عقارك والوصول إلى آلاف المشترين والمستأجرين المحتملين</p>
+        <a href="{{ url_for('register') }}" class="btn btn-light btn-lg px-4 me-2">
+            <i class="fas fa-user-plus me-2"></i>
+            إنشاء حساب جديد
+        </a>
+        <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg px-4">
+            <i class="fas fa-sign-in-alt me-2"></i>
+            تسجيل الدخول
+        </a>
+    </div>
+</section>
+{% endblock %}
+
+{% block styles %}
+<style>
+    /* أنماط صفحة الرئيسية */
+    .hero-section {
+        background: url('{{ url_for('static', filename='img/hero-bg.jpg') }}') no-repeat center center;
+        background-size: cover;
+        min-height: 600px;
+        display: flex;
+        align-items: center;
+    }
+    
+    @media (max-width: 768px) {
+        .hero-section {
+            min-height: 400px;
+        }
+    }
+    
+    .icon-box {
+        width: 70px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .icon-box i {
+        font-size: 24px;
+    }
+    
+    .property-card:hover {
+        transform: translateY(-5px);
+        transition: all 0.3s ease;
+    }
+    
+    .property-card .card-img-top {
+        height: 200px;
+        object-fit: cover;
+    }
+    
+    /* لحل مشكلة عدم وجود صورة الخلفية قبل إضافتها */
+    .hero-section {
+        background-color: #0d6efd;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends 'layout.html' %}
+
+{% block title %}تسجيل حساب جديد{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white text-center py-3">
+                    <h3 class="mb-0">
+                        <i class="fas fa-user-plus me-2"></i>
+                        إنشاء حساب جديد
+                    </h3>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('register') }}">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">اسم المستخدم</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <input type="text" class="form-control" id="username" name="username" required minlength="3">
+                            </div>
+                            <div class="form-text">يجب أن يكون الاسم بين 3 و 50 حرفاً</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">البريد الإلكتروني</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">رقم الهاتف</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                <input type="tel" class="form-control" id="phone" name="phone" required minlength="9">
+                            </div>
+                            <div class="form-text">مثال: 777123456</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">كلمة المرور</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <input type="password" class="form-control" id="password" name="password" required minlength="8">
+                            </div>
+                            <div class="form-text">يجب أن تكون كلمة المرور 8 أحرف على الأقل</div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="confirm_password" class="form-label">تأكيد كلمة المرور</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-user-plus me-2"></i>
+                                تسجيل
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center py-3 bg-light">
+                    <p class="mb-0">هل لديك حساب بالفعل؟ <a href="{{ url_for('login') }}" class="text-primary">تسجيل الدخول</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // التحقق من تطابق كلمات المرور
+    document.getElementById('password').addEventListener('input', validatePassword);
+    document.getElementById('confirm_password').addEventListener('input', validatePassword);
+    
+    function validatePassword() {
+        const password = document.getElementById('password');
+        const confirm = document.getElementById('confirm_password');
+        
+        if (confirm.value && password.value !== confirm.value) {
+            confirm.setCustomValidity('كلمات المرور غير متطابقة');
+        } else {
+            confirm.setCustomValidity('');
+        }
+    }
+</script>
+{% endblock %}

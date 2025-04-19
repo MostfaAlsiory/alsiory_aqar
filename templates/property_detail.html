@@ -1,0 +1,323 @@
+{% extends 'layout.html' %}
+
+{% block title %}{{ property.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">الرئيسية</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('properties') }}">العقارات</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ property.title }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row">
+        <!-- تفاصيل العقار - العمود الرئيسي -->
+        <div class="col-lg-8">
+            <!-- شريط العنوان -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 class="h3 mb-1">{{ property.title }}</h1>
+                            <p class="text-muted mb-0">
+                                <i class="fas fa-map-marker-alt me-1"></i>
+                                {{ property.address }}
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <div class="badge bg-{{ 'info' if property.transaction_type == 'sale' else 'success' }} mb-2 py-2 px-3 fs-6">
+                                {{ 'للبيع' if property.transaction_type == 'sale' else 'للإيجار' }}
+                            </div>
+                            <h3 class="text-primary mb-0 mt-1">{{ property.price|int }} $</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- صور العقار -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-body p-0">
+                    {% if property.images|length > 0 %}
+                    <div id="propertyCarousel" class="carousel slide" data-bs-ride="carousel">
+                        <div class="carousel-indicators">
+                            {% for image in property.images %}
+                            <button type="button" data-bs-target="#propertyCarousel" data-bs-slide-to="{{ loop.index0 }}" 
+                                    {{ 'class="active"' if loop.index0 == 0 }} aria-label="Slide {{ loop.index }}"></button>
+                            {% endfor %}
+                        </div>
+                        <div class="carousel-inner">
+                            {% for image in property.images %}
+                            <div class="carousel-item {{ 'active' if loop.index0 == 0 }}">
+                                <img src="{{ url_for('static', filename=image.image_path) }}" 
+                                     class="d-block w-100" style="height: 500px; object-fit: cover;" 
+                                     alt="{{ property.title }} - صورة {{ loop.index }}">
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button class="carousel-control-prev" type="button" data-bs-target="#propertyCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">السابق</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#propertyCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">التالي</span>
+                        </button>
+                    </div>
+                    {% else %}
+                    <img src="{{ url_for('static', filename='img/property-placeholder.jpg') }}" 
+                         class="img-fluid w-100" style="height: 500px; object-fit: cover;" 
+                         alt="لا توجد صورة">
+                    {% endif %}
+                </div>
+                
+                <!-- شريط المعلومات السريعة -->
+                <div class="card-footer bg-white">
+                    <div class="row text-center">
+                        <div class="col-3">
+                            <div class="p-3">
+                                <i class="fas fa-vector-square text-primary mb-2"></i>
+                                <p class="mb-0">المساحة</p>
+                                <h5 class="mb-0">{{ property.area }} م²</h5>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="p-3">
+                                <i class="fas fa-bed text-primary mb-2"></i>
+                                <p class="mb-0">غرف النوم</p>
+                                <h5 class="mb-0">{{ property.bedrooms }}</h5>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="p-3">
+                                <i class="fas fa-bath text-primary mb-2"></i>
+                                <p class="mb-0">الحمامات</p>
+                                <h5 class="mb-0">{{ property.bathrooms }}</h5>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="p-3">
+                                <i class="fas fa-building text-primary mb-2"></i>
+                                <p class="mb-0">النوع</p>
+                                <h5 class="mb-0">{{ property.property_type.name }}</h5>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- وصف العقار -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-white">
+                    <h4>
+                        <i class="fas fa-align-left me-2 text-primary"></i>
+                        وصف العقار
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">{{ property.description|nl2br|safe }}</p>
+                </div>
+            </div>
+            
+            <!-- موقع العقار -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-white">
+                    <h4>
+                        <i class="fas fa-map-marked-alt me-2 text-primary"></i>
+                        الموقع على الخريطة
+                    </h4>
+                </div>
+                <div class="card-body p-0">
+                    <div id="property-map" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- الجانب الأيمن - نموذج الاتصال والمالك -->
+        <div class="col-lg-4">
+            <!-- معلومات المالك -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-white">
+                    <h4>
+                        <i class="fas fa-user me-2 text-primary"></i>
+                        معلومات المالك
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <div class="avatar-circle bg-primary mx-auto mb-3">
+                            <i class="fas fa-user fa-2x text-white"></i>
+                        </div>
+                        <h5>{{ property.owner.username }}</h5>
+                        {% if property.owner.role == 'agent' %}
+                        <span class="badge bg-info">وكيل عقاري</span>
+                        {% endif %}
+                    </div>
+                    
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item">
+                            <i class="fas fa-envelope me-2 text-primary"></i>
+                            {{ property.owner.email }}
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-phone me-2 text-primary"></i>
+                            {{ property.owner.phone }}
+                        </li>
+                    </ul>
+                    
+                    <div class="d-grid">
+                        <a href="tel:{{ property.owner.phone }}" class="btn btn-outline-primary">
+                            <i class="fas fa-phone-alt me-2"></i>
+                            اتصل الآن
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- نموذج حجز موعد معاينة -->
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-white">
+                    <h4>
+                        <i class="fas fa-calendar-check me-2 text-primary"></i>
+                        حجز موعد معاينة
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if current_user.is_authenticated %}
+                    <form method="POST" action="{{ url_for('book_property', property_id=property.id) }}">
+                        <div class="mb-3">
+                            <label for="booking_date" class="form-label">تاريخ ووقت المعاينة</label>
+                            <input type="datetime-local" class="form-control" id="booking_date" name="booking_date" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">ملاحظات إضافية</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-calendar-check me-2"></i>
+                                حجز موعد
+                            </button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <p>يجب تسجيل الدخول لحجز موعد معاينة.</p>
+                        <a href="{{ url_for('login', next=request.path) }}" class="btn btn-primary mt-2">
+                            <i class="fas fa-sign-in-alt me-2"></i>
+                            تسجيل الدخول
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- عقارات مشابهة -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h4>
+                        <i class="fas fa-th-large me-2 text-primary"></i>
+                        عقارات مشابهة
+                    </h4>
+                </div>
+                <div class="card-body p-2">
+                    {% for similar_property in similar_properties %}
+                    <div class="card mb-2 property-card">
+                        <div class="row g-0">
+                            <div class="col-4">
+                                {% if similar_property.images|length > 0 %}
+                                    {% if similar_property.images[0].cloudinary_public_id %}
+                                    <img src="{{ similar_property.images[0].get_image_url() }}" 
+                                         class="img-fluid rounded-start" style="height: 100%; object-fit: cover;" 
+                                         alt="{{ similar_property.title }}">
+                                    {% else %}
+                                    <img src="{{ url_for('static', filename=similar_property.images[0].image_path) }}" 
+                                         class="img-fluid rounded-start" style="height: 100%; object-fit: cover;" 
+                                         alt="{{ similar_property.title }}">
+                                    {% endif %}
+                                {% else %}
+                                <img src="{{ url_for('static', filename='img/property-placeholder.jpg') }}" 
+                                     class="img-fluid rounded-start" style="height: 100%; object-fit: cover;" 
+                                     alt="No Image">
+                                {% endif %}
+                            </div>
+                            <div class="col-8">
+                                <div class="card-body py-2 px-3">
+                                    <h6 class="card-title mb-1">{{ similar_property.title|truncate(30) }}</h6>
+                                    <p class="card-text mb-1">
+                                        <small class="text-muted">
+                                            <i class="fas fa-map-marker-alt"></i>
+                                            {{ similar_property.address|truncate(20) }}
+                                        </small>
+                                    </p>
+                                    <p class="card-text mb-1">
+                                        <span class="text-primary fw-bold">{{ similar_property.price|int }} $</span>
+                                    </p>
+                                    <a href="{{ url_for('property_detail', property_id=similar_property.id) }}" class="stretched-link"></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <p class="text-muted">لا توجد عقارات مشابهة حالياً</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // إنشاء الخريطة
+        const map = L.map('property-map').setView([{{ property.latitude }}, {{ property.longitude }}], 15);
+        
+        // إضافة طبقة OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // إضافة علامة للعقار
+        const marker = L.marker([{{ property.latitude }}, {{ property.longitude }}]).addTo(map);
+        
+        // إضافة دائرة للدلالة على المنطقة
+        L.circle([{{ property.latitude }}, {{ property.longitude }}], {
+            color: 'rgba(var(--bs-primary-rgb), 0.8)',
+            fillColor: 'rgba(var(--bs-primary-rgb), 0.2)',
+            fillOpacity: 0.5,
+            radius: 500 // نصف قطر 500 متر
+        }).addTo(map);
+        
+        // إضافة محتوى للعلامة
+        marker.bindPopup("<b>{{ property.title }}</b><br>{{ property.address }}").openPopup();
+    });
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .avatar-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .property-card {
+        transition: all 0.3s ease;
+    }
+    
+    .property-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}

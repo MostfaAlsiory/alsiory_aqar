@@ -1,0 +1,275 @@
+{% extends 'layout.html' %}
+
+{% block title %}لوحة التحكم - الإدارة{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">
+        <i class="fas fa-tachometer-alt me-2 text-primary"></i>
+        لوحة التحكم الإدارية
+    </h1>
+    
+    <!-- بطاقات الإحصائيات الرئيسية -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary mb-3 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="d-flex align-items-center justify-content-center mb-2">
+                        <i class="fas fa-building text-primary fa-3x me-3"></i>
+                        <h2>{{ total_properties }}</h2>
+                    </div>
+                    <h6 class="card-title">إجمالي العقارات</h6>
+                </div>
+                <div class="card-footer bg-white border-top-0">
+                    <div class="d-grid">
+                        <a href="{{ url_for('admin_properties') }}" class="btn btn-outline-primary btn-sm">عرض التفاصيل</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success mb-3 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="d-flex align-items-center justify-content-center mb-2">
+                        <i class="fas fa-tag text-success fa-3x me-3"></i>
+                        <h2>{{ active_properties }}</h2>
+                    </div>
+                    <h6 class="card-title">عقارات متاحة</h6>
+                </div>
+                <div class="card-footer bg-white border-top-0">
+                    <div class="d-grid">
+                        <a href="{{ url_for('admin_properties') }}?status=available" class="btn btn-outline-success btn-sm">عرض التفاصيل</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info mb-3 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="d-flex align-items-center justify-content-center mb-2">
+                        <i class="fas fa-users text-info fa-3x me-3"></i>
+                        <h2>{{ total_users }}</h2>
+                    </div>
+                    <h6 class="card-title">المستخدمين</h6>
+                </div>
+                <div class="card-footer bg-white border-top-0">
+                    <div class="d-grid">
+                        <a href="{{ url_for('admin_users') }}" class="btn btn-outline-info btn-sm">عرض التفاصيل</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning mb-3 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="d-flex align-items-center justify-content-center mb-2">
+                        <i class="fas fa-calendar-check text-warning fa-3x me-3"></i>
+                        <h2>{{ pending_bookings }}</h2>
+                    </div>
+                    <h6 class="card-title">حجوزات قيد الانتظار</h6>
+                </div>
+                <div class="card-footer bg-white border-top-0">
+                    <div class="d-grid">
+                        <a href="{{ url_for('admin_bookings') }}?status=pending" class="btn btn-outline-warning btn-sm">عرض التفاصيل</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- أحدث العقارات -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-building text-primary me-2"></i>
+                        أحدث العقارات
+                    </h5>
+                    <a href="{{ url_for('admin_properties') }}" class="btn btn-sm btn-outline-primary">عرض الكل</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>الاسم</th>
+                                    <th>النوع</th>
+                                    <th>السعر</th>
+                                    <th>الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for property in latest_properties %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('property_detail', property_id=property.id) }}">
+                                            {{ property.title|truncate(30) }}
+                                        </a>
+                                    </td>
+                                    <td>{{ property.property_type.name }}</td>
+                                    <td>{{ property.price|int }} $</td>
+                                    <td>
+                                        {% if property.status == 'available' %}
+                                        <span class="badge bg-success">متاح</span>
+                                        {% elif property.status == 'sold' %}
+                                        <span class="badge bg-info">تم البيع</span>
+                                        {% elif property.status == 'rented' %}
+                                        <span class="badge bg-warning">تم التأجير</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center">لا توجد عقارات</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- أحدث المستخدمين -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users text-primary me-2"></i>
+                        أحدث المستخدمين
+                    </h5>
+                    <a href="{{ url_for('admin_users') }}" class="btn btn-sm btn-outline-primary">عرض الكل</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>الاسم</th>
+                                    <th>البريد الإلكتروني</th>
+                                    <th>الدور</th>
+                                    <th>تاريخ التسجيل</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in latest_users %}
+                                <tr>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>
+                                        {% if user.role == 'admin' %}
+                                        <span class="badge bg-danger">مسؤول</span>
+                                        {% elif user.role == 'agent' %}
+                                        <span class="badge bg-info">وكيل</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">عميل</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center">لا يوجد مستخدمين</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- أحدث الحجوزات -->
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-check text-primary me-2"></i>
+                        أحدث حجوزات المعاينة
+                    </h5>
+                    <a href="{{ url_for('admin_bookings') }}" class="btn btn-sm btn-outline-primary">عرض الكل</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>العقار</th>
+                                    <th>العميل</th>
+                                    <th>تاريخ الحجز</th>
+                                    <th>تاريخ التقديم</th>
+                                    <th>الحالة</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for booking in latest_bookings %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('property_detail', property_id=booking.property.id) }}">
+                                            {{ booking.property.title|truncate(30) }}
+                                        </a>
+                                    </td>
+                                    <td>{{ booking.user.username }}</td>
+                                    <td>{{ booking.booking_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>{{ booking.created_at.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        {% if booking.status == 'pending' %}
+                                        <span class="badge bg-warning">قيد الانتظار</span>
+                                        {% elif booking.status == 'confirmed' %}
+                                        <span class="badge bg-success">مؤكد</span>
+                                        {% elif booking.status == 'cancelled' %}
+                                        <span class="badge bg-danger">ملغي</span>
+                                        {% elif booking.status == 'completed' %}
+                                        <span class="badge bg-info">مكتمل</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                <i class="fas fa-ellipsis-h"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li>
+                                                    <form action="{{ url_for('update_booking_status', booking_id=booking.id) }}" method="POST">
+                                                        <input type="hidden" name="status" value="confirmed">
+                                                        <button type="submit" class="dropdown-item text-success">
+                                                            <i class="fas fa-check me-2"></i> تأكيد
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                                <li>
+                                                    <form action="{{ url_for('update_booking_status', booking_id=booking.id) }}" method="POST">
+                                                        <input type="hidden" name="status" value="cancelled">
+                                                        <button type="submit" class="dropdown-item text-danger">
+                                                            <i class="fas fa-times me-2"></i> إلغاء
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                                <li>
+                                                    <form action="{{ url_for('update_booking_status', booking_id=booking.id) }}" method="POST">
+                                                        <input type="hidden" name="status" value="completed">
+                                                        <button type="submit" class="dropdown-item text-info">
+                                                            <i class="fas fa-check-double me-2"></i> إكمال
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center">لا توجد حجوزات</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
